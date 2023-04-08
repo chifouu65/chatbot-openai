@@ -11,9 +11,11 @@ const config = new Configuration({
   basePath: 'https://api.openai.com/v1',
 });
 
+const openai = new OpenAIApi(config);
+
 const fetchProducts = async () => {
     try {
-        const response = await fetch('https://api.pierrette-essentielle.com/api/products?populate=*&[filters][categories][id]=2&[filters][price][$lte]=20&sort=price'
+        const response = await fetch('https://api.pierrette-essentielle.com/api/products?populate=*&[filters][categories][id]=2&[filters][price][$lte]=50&sort=price'
         ,{
             method: 'GET',
             headers: {
@@ -36,9 +38,9 @@ const fetchProducts = async () => {
     }
 }
 
-const openai = new OpenAIApi(config);
 const products = await fetchProducts();
-console.log(products);
+
+
 router.route('/test').get((req, res) => {
   res.status(200).json({ products });
 })
@@ -51,20 +53,19 @@ const generatePrompt = (prompt) => {
     `
     const website_info = `
     nom du site: Pierrette Essentielle \n 
-    numéro de téléphone: +33 7 50 34 94 97 \n *
+    numéro de téléphone: +33 7 50 34 94 97 \n 
     developer: noah.lhote56@gmail.com \n
     adresse: 123 rue de la pierre, Paris, France \n 
-    email: es@pierrette-essentielle.com
+    email: es@pierrette-essentielle.com \n 
     `
     const website_products = `
+    liste des produits: \n
     ${products.map((product) => {
+        const { title, price, desc } = product.attributes;
         return `
-            {
-                id: ${product.id} \n
-                nom du produit: ${product.attributes.title} \n
-                prix: ${product.attributes.solde} \n
-                description: ${product.attributes.desc} \n
-            },
+        nom du produit: ${title} \n
+        prix: ${price} \n
+        description: ${desc} \n
         `
     })}
     `
@@ -77,13 +78,18 @@ const generatePrompt = (prompt) => {
     liste des produits: ${website_products}
     \n
     You: ${prompt}
+    \n 
     `
 }
 
+console.log(generatePrompt("bonjour"));
+
 router.route('/').post(async (req, res) => {
+
     const { prompt } = req.body;
+
     const promptt = generatePrompt(prompt);
-    console.log(promptt);
+   
     if (prompt.trim().length === 0) {
         res.status(400).json({
             error: {
@@ -99,6 +105,7 @@ router.route('/').post(async (req, res) => {
         });
         return;
     }
+
     try {
         const response = await openai.createCompletion({
             model: "text-davinci-003",
